@@ -1,13 +1,13 @@
-# project template (0.1) configured on Fri Oct  3 16:41:41 2014 by
+# project template (0.1) configured on Mon Oct  6 15:26:48 2014 by
 # waf 1.7.9 (abi 98, python 20703f0 on linux2)
 # using ./waf configure
 #
 ----------------------------------------
 Setting top to
-/home/user1/ndnSIM/test
+/home/user1/ndnSIM/ICC
 ----------------------------------------
 Setting out to
-/home/user1/ndnSIM/test/build
+/home/user1/ndnSIM/ICC/build
 ----------------------------------------
 Checking for 'g++' (c++ compiler)
 find program=['g++', 'c++'] paths=['/usr/local/bin', '/usr/bin', '/bin', '/usr/local/games', '/usr/games'] var='CXX' -> '/usr/bin/g++'
@@ -215,7 +215,7 @@ int main() { boost::system::error_code c; }
 ['/usr/bin/g++', '-I/usr/include', '../test.cpp', '-c', '-o', 'test.cpp.1.o']
 [2/2] [33mcxxprogram: build/.conf_check_968fbcee789046a8c143bb4a6e302895/testbuild/test.cpp.1.o -> build/.conf_check_968fbcee789046a8c143bb4a6e302895/testbuild/testprog
 [0m
-['/usr/bin/g++', 'test.cpp.1.o', '-o', '/home/user1/ndnSIM/test/build/.conf_check_968fbcee789046a8c143bb4a6e302895/testbuild/testprog', '-Wl,-Bstatic', '-Wl,-Bdynamic', '-L/usr/lib', '-lboost_system-mt', '-lboost_iostreams-mt', '-lboost_regex-mt']
+['/usr/bin/g++', 'test.cpp.1.o', '-o', '/home/user1/ndnSIM/ICC/build/.conf_check_968fbcee789046a8c143bb4a6e302895/testbuild/testprog', '-Wl,-Bstatic', '-Wl,-Bdynamic', '-L/usr/lib', '-lboost_system-mt', '-lboost_iostreams-mt', '-lboost_regex-mt']
 ok
 ----------------------------------------
 Checking for program pkg-config
@@ -288,7 +288,7 @@ to the PKG_CONFIG_PATH environment variable
 No package 'libns3-dev-brite-optimized' found
 
 not found
-from /home/user1/ndnSIM/test: The configuration failed
+from /home/user1/ndnSIM/ICC: The configuration failed
 ------------------------------------------
 Checking for ns3-buildings
 ['/usr/bin/pkg-config', '--cflags', '--libs', 'libns3-dev-buildings-optimized']
@@ -406,7 +406,7 @@ to the PKG_CONFIG_PATH environment variable
 No package 'libns3-dev-openflow-optimized' found
 
 not found
-from /home/user1/ndnSIM/test: The configuration failed
+from /home/user1/ndnSIM/ICC: The configuration failed
 ------------------------------------------
 Checking for ns3-point-to-point-layout
 ['/usr/bin/pkg-config', '--cflags', '--libs', 'libns3-dev-point-to-point-layout-optimized']

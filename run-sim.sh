@@ -5,7 +5,7 @@ WAF=${WAFDIR}waf
 
 
 #for  speed in 5 10 20 30 40 50 60 70 80
-for speed in 50
+for speed in 10
 do
 
 #echo "run $WAF --run "fake -speed=$speed -trace""

@@ -310,6 +310,16 @@ int main (int argc, char *argv[])
 	allUserNodes.Add (mobileTerminalContainer);
 	allUserNodes.Add (serverNodes);
 
+	// Container for each AP to be identified
+	NodeContainer SSID1;
+	SSID1.Add (wirelessContainer.Get(0));
+	NodeContainer SSID2;
+	SSID2.Add (wirelessContainer.Get(1));
+	NodeContainer SSID3;
+	SSID3.Add (wirelessContainer.Get(2));
+	NodeContainer SSID4;
+	SSID4.Add (wirelessContainer.Get(3));
+
 	// Make sure to seed our random
 	gen.seed (std::time (0) + (long long)getpid () << 32);
 
@@ -628,7 +638,7 @@ int main (int argc, char *argv[])
 	// Schedule AP Changes
 	double apsec = 0.0;
 	// How often should the AP check it's distance
-	double checkTime = endTime/3;
+	double checkTime = 10.0/speed;
 	double j = apsec;
 
 	while ( j < endTime)
