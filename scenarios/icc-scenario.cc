@@ -155,6 +155,33 @@ PeriodicPitPrinter (Ptr<Node> node)
 
 	for (Ptr<ndn::pit::Entry> entry = pit->Begin (); entry != pit->End (); entry = pit->Next (entry))
 	{
+		ndn::pit::Entry::in_container incoming = entry->GetIncoming ();
+		ndn::pit::Entry::out_container outgoing = entry->GetOutgoing ();
+
+		cout << "In: ";
+		bool first = true;
+		BOOST_FOREACH (const ndn::pit::IncomingFace &face, incoming)
+		{
+			if (!first)
+				cout << ",";
+			else
+				first = false;
+
+			cout << *face.m_face;
+		}
+
+		cout << "\nOut: ";
+		first = true;
+		BOOST_FOREACH (const ndn::pit::OutgoingFace &face, outgoing)
+		{
+			if (!first)
+				cout << ",";
+			else
+				first = false;
+
+			cout << *face.m_face;
+		}
+
 		cout << entry->GetPrefix () << "\t" << entry->GetExpireTime () << endl;
 	}
 }
