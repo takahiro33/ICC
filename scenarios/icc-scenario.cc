@@ -215,7 +215,7 @@ int main (int argc, char *argv[])
 		}
 		nsTFile = buffer;
 		endTime = 0.4*3600/speed;
-		cout << "endtime=" << endTime;
+//		cout << "endtime=" << endTime << endl;
 
 	vector<double> centralXpos;
 	vector<double> centralYpos;
@@ -224,16 +224,15 @@ int main (int argc, char *argv[])
 	centralYpos.push_back(-50.0);
 	centralYpos.push_back(-50.0);
 
+	// allocate wireless nodes
 	vector<double> wirelessXpos;
 	vector<double> wirelessYpos;
-	wirelessXpos.push_back(0);
-	wirelessXpos.push_back(100);
-	wirelessXpos.push_back(200);
-	wirelessXpos.push_back(300);
-	wirelessYpos.push_back(0);
-	wirelessYpos.push_back(0);
-	wirelessYpos.push_back(0);
-	wirelessYpos.push_back(0);
+
+	for(int i = 0; i < wnodes; i++)
+	{
+		wirelessXpos.push_back(i*100);
+		wirelessYpos.push_back(0);
+	}
 
 	 // What the NDN Data packet payload size is fixed to 1024 bytes
 	uint32_t payLoadsize = 1024;
