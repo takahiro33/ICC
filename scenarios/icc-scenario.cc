@@ -1,24 +1,25 @@
 /* -*- Mode:C++; c-file-style:"gnu"; -*- */
 /*
- * ndn-mobility-random.cc
- *  Random walk Wifi Mobile scenario for ndnSIM
+ * icc-scenario.cc
+ *  Sector walk for ndnSIM
  *
  * Copyright (c) 2014 Waseda University, Sato Laboratory
  * Author: Jairo Eduardo Lopez <jairo@ruri.waseda.jp>
+ *         Takahiro Miyamoto <mt3.mos@gmail.com>
  *
  * Special thanks to University of Washington for initial templates
  *
- *  ndn-mobility-random is free software: you can redistribute it and/or modify
+ *  icc-scenario.cc is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero Public License as published by
  *  the Free Software Foundation, either version 3 of the License, or
  *  (at your option) any later version.
- *  ndn-mobility-random is distributed in the hope that it will be useful,
+ *  icc-scenario.cc is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU Affero Public License for more details.
  *
  *  You should have received a copy of the GNU Affero Public License
- *  along with ndn-mobility-random.  If not, see <http://www.gnu.org/licenses/>.
+ *  along with icc-scenario.cc.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 // Standard C++ modules
@@ -57,14 +58,22 @@
 #include <ns3-dev/ns3/ndnSIM/utils/tracers/ipv4-rate-l3-tracer.h>
 #include <ns3-dev/ns3/ndnSIM/utils/tracers/ipv4-seqs-app-tracer.h>
 
-// Extension files
-// #include "minstrel-wifi-manager.h"
-
 using namespace ns3;
 using namespace boost;
 using namespace std;
+using namespace ndn;
+using namespace fib;
 
 namespace br = boost::random;
+
+// Pit Entries
+#include <ns3-dev/ns3/ndnSIM/model/pit/ndn-pit.h>
+#include <ns3-dev/ns3/ndnSIM/model/pit/ndn-pit-impl.h>
+#include <ns3-dev/ns3/ndnSIM/model/pit/ndn-pit-entry.h>
+#include <ns3-dev/ns3/ndnSIM/model/pit/ndn-pit-entry-impl.h>
+#include <ns3-dev/ns3/ndnSIM/model/pit/ndn-pit-entry-incoming-face.h>
+#include <ns3-dev/ns3/ndnSIM/model/pit/ndn-pit-entry-outgoing-face.h>
+
 
 typedef struct timeval TIMER_TYPE;
 #define TIMER_NOW(_t) gettimeofday (&_t,NULL);
@@ -135,6 +144,19 @@ SetSSID (uint32_t mtId, uint32_t deviceId, Ssid ssidName)
 	sprintf(configbuf, "/NodeList/%d/DeviceList/%d/$ns3::WifiNetDevice/Mac/Ssid", mtId, deviceId);
 
 	Config::Set(configbuf, SsidValue(ssidName));
+}
+
+void
+PeriodicPitPrinter (Ptr<Node> node)
+{
+	Ptr<ndn::Pit> pit = node->GetObject<ndn::Pit> ();
+
+	cout << "Node: " << node->GetId () << endl;
+
+	for (Ptr<ndn::pit::Entry> entry = pit->Begin (); entry != pit->End (); entry = pit->Next (entry))
+	{
+		cout << entry->GetPrefix () << "\t" << entry->GetExpireTime () << endl;
+	}
 }
 
 int main (int argc, char *argv[])
@@ -239,6 +261,7 @@ int main (int argc, char *argv[])
 	endTime = 400 / realspeed;
 	cout << "endtime=" << endTime << endl;
 
+
 	vector<double> centralXpos;
 	vector<double> centralYpos;
 	centralXpos.push_back(50.0);
@@ -246,15 +269,16 @@ int main (int argc, char *argv[])
 	centralYpos.push_back(-50.0);
 	centralYpos.push_back(-50.0);
 
-	// allocate wireless nodes
 	vector<double> wirelessXpos;
 	vector<double> wirelessYpos;
-
-	for(int i = 0; i < wnodes; i++)
-	{
-		wirelessXpos.push_back(i*100);
-		wirelessYpos.push_back(0);
-	}
+	wirelessXpos.push_back(0);
+	wirelessXpos.push_back(100);
+	wirelessXpos.push_back(200);
+	wirelessXpos.push_back(300);
+	wirelessYpos.push_back(0);
+	wirelessYpos.push_back(0);
+	wirelessYpos.push_back(0);
+	wirelessYpos.push_back(0);
 
 	 // What the NDN Data packet payload size is fixed to 1024 bytes
 	uint32_t payLoadsize = 1024;
@@ -673,9 +697,14 @@ int main (int argc, char *argv[])
 			Simulator::Schedule (Seconds(j), &SetSSID, mobileNodeIds[0], 0, ssidV[k]);
 		}
 
+		NS_LOG_INFO ("------Testing PIT printing------");
+		Simulator::Schedule (Seconds(j), &PeriodicPitPrinter, wirelessContainer.Get(0));
+
 		j += checkTime;
 		k++;
 	}
+
+
 
 	NS_LOG_INFO ("------Ready for execution!------");
 
