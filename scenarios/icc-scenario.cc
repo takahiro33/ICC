@@ -71,7 +71,7 @@ typedef struct timeval TIMER_TYPE;
 #define TIMER_SECONDS(_t) ((double)(_t).tv_sec + (_t).tv_usec*1e-6)
 #define TIMER_DIFF(_t1, _t2) (TIMER_SECONDS (_t1)-TIMER_SECONDS (_t2))
 
-char scenario[250] = "fakeInterest";
+char scenario[250] = "ICCScenario";
 
 NS_LOG_COMPONENT_DEFINE (scenario);
 
@@ -124,6 +124,17 @@ void SetSSIDviaDistance(uint32_t mtId, Ptr<MobilityModel> node, std::map<std::st
 
 	// Empty the maps
 	SsidDistance.clear();
+}
+
+// Function to change the SSID of a node's Wifi netdevice
+void
+SetSSID (uint32_t mtId, uint32_t deviceId, Ssid ssidName)
+{
+	char configbuf[250];
+
+	sprintf(configbuf, "/NodeList/%d/DeviceList/%d/$ns3::WifiNetDevice/Mac/Ssid", mtId, deviceId);
+
+	Config::Set(configbuf, SsidValue(ssidName));
 }
 
 int main (int argc, char *argv[])
@@ -182,40 +193,51 @@ int main (int argc, char *argv[])
 
 	uint32_t top = speed;
 
-		sprintf(buffer, "%s/Walk_random.ns_movements", nsTDir);
-		switch (top)
-		{
-		case 5:
-                	sprintf(buffer, "%s/1.4.ns_movements", nsTDir);
-			break;
-		case 10:
-                	sprintf(buffer, "%s/2.8.ns_movements", nsTDir);
-			break;
-		case 20:
-                	sprintf(buffer, "%s/5.6.ns_movements", nsTDir);
-			break;
-		case 30:
-                	sprintf(buffer, "%s/8.3.ns_movements", nsTDir);
-			break;
-		case 40:
-                	sprintf(buffer, "%s/11.2.ns_movements", nsTDir);
-			break;
-		case 50:
-                	sprintf(buffer, "%s/13.9.ns_movements", nsTDir);
-			break;
-		case 60:
-                	sprintf(buffer, "%s/16.7.ns_movements", nsTDir);
-			break;
-		case 70:
-                	sprintf(buffer, "%s/19.4.ns_movements", nsTDir);
-			break;
-		case 80:
-                	sprintf(buffer, "%s/22.2.ns_movements", nsTDir);
-			break;
-		}
-		nsTFile = buffer;
-		endTime = 0.3*3600/speed;
-		cout << endTime;
+	double realspeed = 0.0;
+
+	sprintf(buffer, "%s/Walk_random.ns_movements", nsTDir);
+	switch (top)
+	{
+	case 5:
+		sprintf(buffer, "%s/1.4.ns_movements", nsTDir);
+		realspeed = 1.4;
+		break;
+	case 10:
+		sprintf(buffer, "%s/2.8.ns_movements", nsTDir);
+		realspeed = 2.8;
+		break;
+	case 20:
+		sprintf(buffer, "%s/5.6.ns_movements", nsTDir);
+		realspeed = 5.6;
+		break;
+	case 30:
+		sprintf(buffer, "%s/8.3.ns_movements", nsTDir);
+		realspeed = 8.3;
+		break;
+	case 40:
+		sprintf(buffer, "%s/11.2.ns_movements", nsTDir);
+		realspeed = 11.2;
+		break;
+	case 50:
+		sprintf(buffer, "%s/13.9.ns_movements", nsTDir);
+		realspeed = 13.9;
+		break;
+	case 60:
+		sprintf(buffer, "%s/16.7.ns_movements", nsTDir);
+		realspeed = 16.7;
+		break;
+	case 70:
+		sprintf(buffer, "%s/19.4.ns_movements", nsTDir);
+		realspeed = 19.4;
+		break;
+	case 80:
+		sprintf(buffer, "%s/22.2.ns_movements", nsTDir);
+		realspeed = 22.2;
+		break;
+	}
+	nsTFile = buffer;
+	endTime = 400 / realspeed;
+	cout << endTime;
 
 	vector<double> centralXpos;
 	vector<double> centralYpos;
@@ -542,7 +564,7 @@ int main (int argc, char *argv[])
 	// Create the producer on the mobile node
 	ndn::AppHelper producerHelper ("ns3::ndn::Producer");
 	producerHelper.SetPrefix ("/waseda/sato");
-	producerHelper.SetAttribute ("StopTime", TimeValue (Seconds(endTime-1)));
+	producerHelper.SetAttribute ("StopTime", TimeValue (Seconds(endTime)));
 	// Payload size is in bytes
 	producerHelper.SetAttribute ("PayloadSize", UintegerValue(payLoadsize));
 	producerHelper.Install (serverNodes);
@@ -557,7 +579,7 @@ int main (int argc, char *argv[])
 	consumerHelper.SetPrefix ("/waseda/sato");
 	consumerHelper.SetAttribute ("Frequency", DoubleValue (intFreq));
 	consumerHelper.SetAttribute ("StartTime", TimeValue (Seconds(1)));
-	consumerHelper.SetAttribute ("StopTime", TimeValue (Seconds(endTime-1)));
+	consumerHelper.SetAttribute ("StopTime", TimeValue (Seconds(endTime)));
 	consumerHelper.SetAttribute ("RetxTimer", TimeValue (Seconds(retxtime)));
 	if (maxSeq > 0)
 		consumerHelper.SetAttribute ("MaxSeq", IntegerValue(maxSeq));
@@ -565,7 +587,7 @@ int main (int argc, char *argv[])
 	consumerHelper.Install (mobileTerminalContainer);
 	if(fake)	consumerHelper.Install (centralContainer);			//change here (normal / fake interest)
 
-	sprintf(buffer, "Ending time! %f", endTime);
+	sprintf(buffer, "Ending time! %f", endTime+1);
 	NS_LOG_INFO(buffer);
 
 	// If the variable is set, print the trace files
@@ -638,25 +660,27 @@ int main (int argc, char *argv[])
 	// Schedule AP Changes
 	double apsec = 0.0;
 	// How often should the AP check it's distance
-	double checkTime = 10.0/speed;
+	double checkTime = 100.0/realspeed;
 	double j = apsec;
+	int k = 0;
 
 	while ( j < endTime)
 	{
 		sprintf(buffer, "Running event at %f", j);
 		NS_LOG_INFO(buffer);
 
-		for (int i = 0; i < mobile; i++)
+		for (int i = 0; i < mobile && k < 4; i++)
 		{
-			Simulator::Schedule (Seconds(j), &SetSSIDviaDistance, mobileNodeIds[i], mobileTerminalsMobility[i], apTerminalMobility);
+			Simulator::Schedule (Seconds(j), &SetSSID, mobileNodeIds[0], 0, ssidV[k]);
 		}
 
 		j += checkTime;
+		k++;
 	}
 
 	NS_LOG_INFO ("------Ready for execution!------");
 
-	Simulator::Stop (Seconds (endTime));
+	Simulator::Stop (Seconds (endTime+1));
 	Simulator::Run ();
 	Simulator::Destroy ();
 }
