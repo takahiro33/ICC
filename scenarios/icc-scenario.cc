@@ -214,8 +214,8 @@ int main (int argc, char *argv[])
 			break;
 		}
 		nsTFile = buffer;
-		endTime = 0.3*3600/speed;
-		cout << endTime;
+		endTime = 0.4*3600/speed;
+		cout << "endtime=" << endTime;
 
 	vector<double> centralXpos;
 	vector<double> centralYpos;
