@@ -193,6 +193,42 @@ int main (int argc, char *argv[])
 
 	uint32_t top = speed;
 
+<<<<<<< HEAD
+		sprintf(buffer, "%s/Walk_random.ns_movements", nsTDir);
+		switch (top)
+		{
+		case 5:
+                	sprintf(buffer, "%s/1.4.ns_movements", nsTDir);
+			break;
+		case 10:
+                	sprintf(buffer, "%s/2.8.ns_movements", nsTDir);
+			break;
+		case 20:
+                	sprintf(buffer, "%s/5.6.ns_movements", nsTDir);
+			break;
+		case 30:
+                	sprintf(buffer, "%s/8.3.ns_movements", nsTDir);
+			break;
+		case 40:
+                	sprintf(buffer, "%s/11.2.ns_movements", nsTDir);
+			break;
+		case 50:
+                	sprintf(buffer, "%s/13.9.ns_movements", nsTDir);
+			break;
+		case 60:
+                	sprintf(buffer, "%s/16.7.ns_movements", nsTDir);
+			break;
+		case 70:
+                	sprintf(buffer, "%s/19.4.ns_movements", nsTDir);
+			break;
+		case 80:
+                	sprintf(buffer, "%s/22.2.ns_movements", nsTDir);
+			break;
+		}
+		nsTFile = buffer;
+		endTime = 0.4*3600/speed;
+//		cout << "endtime=" << endTime << endl;
+=======
 	double realspeed = 0.0;
 
 	sprintf(buffer, "%s/Walk_random.ns_movements", nsTDir);
@@ -238,6 +274,8 @@ int main (int argc, char *argv[])
 	nsTFile = buffer;
 	endTime = 400 / realspeed;
 	cout << "endtime=" << endTime << endl;
+
+>>>>>>> nacarino-master
 
 	vector<double> centralXpos;
 	vector<double> centralYpos;
