@@ -1,24 +1,25 @@
 /* -*- Mode:C++; c-file-style:"gnu"; -*- */
 /*
- * ndn-mobility-random.cc
- *  Random walk Wifi Mobile scenario for ndnSIM
+ * icc-scenario.cc
+ *  Sector walk for ndnSIM
  *
  * Copyright (c) 2014 Waseda University, Sato Laboratory
  * Author: Jairo Eduardo Lopez <jairo@ruri.waseda.jp>
+ *         Takahiro Miyamoto <mt3.mos@gmail.com>
  *
  * Special thanks to University of Washington for initial templates
  *
- *  ndn-mobility-random is free software: you can redistribute it and/or modify
+ *  icc-scenario.cc is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Affero Public License as published by
  *  the Free Software Foundation, either version 3 of the License, or
  *  (at your option) any later version.
- *  ndn-mobility-random is distributed in the hope that it will be useful,
+ *  icc-scenario.cc is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU Affero Public License for more details.
  *
  *  You should have received a copy of the GNU Affero Public License
- *  along with ndn-mobility-random.  If not, see <http://www.gnu.org/licenses/>.
+ *  along with icc-scenario.cc.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 // Standard C++ modules
@@ -57,21 +58,30 @@
 #include <ns3-dev/ns3/ndnSIM/utils/tracers/ipv4-rate-l3-tracer.h>
 #include <ns3-dev/ns3/ndnSIM/utils/tracers/ipv4-seqs-app-tracer.h>
 
-// Extension files
-// #include "minstrel-wifi-manager.h"
-
 using namespace ns3;
 using namespace boost;
 using namespace std;
+using namespace ndn;
+using namespace fib;
 
 namespace br = boost::random;
+
+// Pit Entries
+#include <ns3-dev/ns3/ndnSIM/model/pit/ndn-pit.h>
+#include <ns3-dev/ns3/ndnSIM/model/pit/ndn-pit-impl.h>
+#include <ns3-dev/ns3/ndnSIM/model/pit/ndn-pit-entry.h>
+#include <ns3-dev/ns3/ndnSIM/model/pit/ndn-pit-entry-impl.h>
+#include <ns3-dev/ns3/ndnSIM/model/pit/ndn-pit-entry-incoming-face.h>
+#include <ns3-dev/ns3/ndnSIM/model/pit/ndn-pit-entry-outgoing-face.h>
+
 
 typedef struct timeval TIMER_TYPE;
 #define TIMER_NOW(_t) gettimeofday (&_t,NULL);
 #define TIMER_SECONDS(_t) ((double)(_t).tv_sec + (_t).tv_usec*1e-6)
 #define TIMER_DIFF(_t1, _t2) (TIMER_SECONDS (_t1)-TIMER_SECONDS (_t2))
 
-char scenario[250] = "ICCScenario";
+//char scenario[250] = "ICCScenario";
+char scenario[250] = "proactiveCaching";
 
 NS_LOG_COMPONENT_DEFINE (scenario);
 
@@ -137,33 +147,74 @@ SetSSID (uint32_t mtId, uint32_t deviceId, Ssid ssidName)
 	Config::Set(configbuf, SsidValue(ssidName));
 }
 
+void
+PeriodicPitPrinter (Ptr<Node> node)
+{
+	Ptr<ndn::Pit> pit = node->GetObject<ndn::Pit> ();
+
+	cout << "Node: " << node->GetId () << endl;
+
+	for (Ptr<ndn::pit::Entry> entry = pit->Begin (); entry != pit->End (); entry = pit->Next (entry))
+	{
+		ndn::pit::Entry::in_container incoming = entry->GetIncoming ();
+		ndn::pit::Entry::out_container outgoing = entry->GetOutgoing ();
+
+		cout << "In: ";
+		bool first = true;
+		BOOST_FOREACH (const ndn::pit::IncomingFace &face, incoming)
+		{
+			if (!first)
+				cout << ",";
+			else
+				first = false;
+
+			cout << *face.m_face;
+		}
+
+		cout << "\nOut: ";
+		first = true;
+		BOOST_FOREACH (const ndn::pit::OutgoingFace &face, outgoing)
+		{
+			if (!first)
+				cout << ",";
+			else
+				first = false;
+
+			cout << *face.m_face;
+		}
+
+		cout << entry->GetPrefix () << "\t" << entry->GetExpireTime () << endl;
+	}
+}
+
 int main (int argc, char *argv[])
 {
 	// These are our scenario arguments
 	uint32_t sectors = 2;                         // Number of wireless sectors
-	uint32_t aps = 2;					          // Number of wireless access nodes in a sector
-	uint32_t mobile = 1;				          // Number of mobile terminals
-	uint32_t servers = 1;				          // Number of servers in the network
+	uint32_t aps = 2;			      // Number of wireless access nodes in a sector
+	uint32_t mobile = 10;			      // Number of mobile terminals
+	uint32_t servers = 1;			      // Number of servers in the network
 	uint32_t wnodes = aps * sectors;              // Number of nodes in the network
 	uint32_t xaxis = 300;                         // Size of the X axis
 	uint32_t yaxis = 300;                         // Size of the Y axis
 	double sec = 0.0;                             // Movement start
-	bool fake = false;							  // Enable fake interest or not
+	bool proactive = false;			      // Enable proactive caching or not
 	bool traceFiles = false;                      // Tells to run the simulation with traceFiles
 	bool smart = false;                           // Tells to run the simulation with SmartFlooding
 	bool bestr = false;                           // Tells to run the simulation with BestRoute
 	bool walk = true;                             // Do random walk at walking speed
-	double speed= 5;							  // MN's speed	change here (1.4 | 8.3 | 16.7)
+	double speed= 5;			      // MN's speed change here (1.4 | 8.3 | 16.7)
+	uint32_t distance = 50;			      // MN's minimum distance from AP 
 	char results[250] = "results";                // Directory to place results
 	double endTime = 200;                         // Number of seconds to run the simulation
-	double MBps = 0.15;                           // MB/s data rate desired for applications
+	double MBps = 0.60;                           // MB/s data rate desired for applications
 	int contentSize = -1;                         // Size of content to be retrieved
 	int maxSeq = -1;                              // Maximum number of Data packets to request
 	double retxtime = 0.05;                       // How frequent Interest retransmission timeouts should be checked (seconds)
 	int csSize = 10000000;                        // How big the Content Store should be
 	//double deltaTime = 10;
         std::string nsTFile;                          // Name of the NS Trace file to use
-	char nsTDir[250] = "./Waypoints";           // Directory for the waypoint files
+	char nsTDir[250] = "./Waypoints";             // Directory for the waypoint files
 	
 	// Variable for buffer
 	char buffer[250];
@@ -173,13 +224,14 @@ int main (int argc, char *argv[])
 	cmd.AddValue ("servers", "Number of servers in the simulation", servers);
 	cmd.AddValue ("results", "Directory to place results", results);
 	cmd.AddValue ("start", "Starting second", sec);
-	cmd.AddValue ("fake", "Enable fake interest", fake);
+	cmd.AddValue ("proactive", "Enable proactive caching", proactive);
 	cmd.AddValue ("trace", "Enable trace files", traceFiles);
 	cmd.AddValue ("smart", "Enable SmartFlooding forwarding", smart);
 	cmd.AddValue ("bestr", "Enable BestRoute forwarding", bestr);
 	cmd.AddValue ("csSize", "Number of Interests a Content Store can maintain", csSize);
 	cmd.AddValue ("walk", "Enable random walk at walking speed", walk);
 	cmd.AddValue ("speed", "Number of speed/hour of mobile terminals in the simulation", speed);
+	cmd.AddValue ("distance", "Number of minimum distance between MN and AP in the simulation", distance);
 	cmd.AddValue ("endTime", "How long the simulation will last (Seconds)", endTime);
 	cmd.AddValue ("mbps", "Data transmission rate for NDN App in MBps", MBps);
 	cmd.AddValue ("size", "Content size in MB (-1 is for no limit)", contentSize);
@@ -193,89 +245,72 @@ int main (int argc, char *argv[])
 
 	uint32_t top = speed;
 
-<<<<<<< HEAD
-		sprintf(buffer, "%s/Walk_random.ns_movements", nsTDir);
-		switch (top)
-		{
-		case 5:
-                	sprintf(buffer, "%s/1.4.ns_movements", nsTDir);
-			break;
-		case 10:
-                	sprintf(buffer, "%s/2.8.ns_movements", nsTDir);
-			break;
-		case 20:
-                	sprintf(buffer, "%s/5.6.ns_movements", nsTDir);
-			break;
-		case 30:
-                	sprintf(buffer, "%s/8.3.ns_movements", nsTDir);
-			break;
-		case 40:
-                	sprintf(buffer, "%s/11.2.ns_movements", nsTDir);
-			break;
-		case 50:
-                	sprintf(buffer, "%s/13.9.ns_movements", nsTDir);
-			break;
-		case 60:
-                	sprintf(buffer, "%s/16.7.ns_movements", nsTDir);
-			break;
-		case 70:
-                	sprintf(buffer, "%s/19.4.ns_movements", nsTDir);
-			break;
-		case 80:
-                	sprintf(buffer, "%s/22.2.ns_movements", nsTDir);
-			break;
-		}
-		nsTFile = buffer;
-		endTime = 0.4*3600/speed;
-//		cout << "endtime=" << endTime << endl;
-=======
 	double realspeed = 0.0;
 
 	sprintf(buffer, "%s/Walk_random.ns_movements", nsTDir);
 	switch (top)
 	{
+	case 0:
+		switch(distance)
+		{
+			case 50:
+			sprintf(buffer, "%s/0-50.ns_movements", nsTDir);			
+			break;
+			
+			case 100:
+			sprintf(buffer, "%s/0-100.ns_movements", nsTDir);
+
+			break;
+			
+			case 200:
+			sprintf(buffer, "%s/0-200.ns_movements", nsTDir);
+			break;
+		}
+		break;
+			
 	case 5:
-		sprintf(buffer, "%s/1.4.ns_movements", nsTDir);
+		switch(distance)
+		{
+			case 50:
+			sprintf(buffer, "%s/1.4-50.ns_movements", nsTDir);			
+			break;
+			
+			case 100:
+			sprintf(buffer, "%s/1.4-100.ns_movements", nsTDir);
+
+			break;
+			
+			case 200:
+			sprintf(buffer, "%s/1.4-200.ns_movements", nsTDir);
+			break;
+		}
 		realspeed = 1.4;
 		break;
+		
 	case 10:
-		sprintf(buffer, "%s/2.8.ns_movements", nsTDir);
+			switch(distance)
+		{
+			case 50:
+			sprintf(buffer, "%s/2.8-50.ns_movements", nsTDir);			
+			break;
+			
+			case 100:
+			sprintf(buffer, "%s/2.8-100.ns_movements", nsTDir);
+
+			break;
+			
+			case 200:
+			sprintf(buffer, "%s/2.8-200.ns_movements", nsTDir);
+			break;
+		}
 		realspeed = 2.8;
-		break;
-	case 20:
-		sprintf(buffer, "%s/5.6.ns_movements", nsTDir);
-		realspeed = 5.6;
-		break;
-	case 30:
-		sprintf(buffer, "%s/8.3.ns_movements", nsTDir);
-		realspeed = 8.3;
-		break;
-	case 40:
-		sprintf(buffer, "%s/11.2.ns_movements", nsTDir);
-		realspeed = 11.2;
-		break;
-	case 50:
-		sprintf(buffer, "%s/13.9.ns_movements", nsTDir);
-		realspeed = 13.9;
-		break;
-	case 60:
-		sprintf(buffer, "%s/16.7.ns_movements", nsTDir);
-		realspeed = 16.7;
-		break;
-	case 70:
-		sprintf(buffer, "%s/19.4.ns_movements", nsTDir);
-		realspeed = 19.4;
-		break;
-	case 80:
-		sprintf(buffer, "%s/22.2.ns_movements", nsTDir);
-		realspeed = 22.2;
 		break;
 	}
 	nsTFile = buffer;
-	endTime = 400 / realspeed;
+	if(speed != 0) endTime = 400 / realspeed;
+	else endTime =200;
 	cout << "endtime=" << endTime << endl;
 
->>>>>>> nacarino-master
 
 	vector<double> centralXpos;
 	vector<double> centralYpos;
@@ -284,15 +319,16 @@ int main (int argc, char *argv[])
 	centralYpos.push_back(-50.0);
 	centralYpos.push_back(-50.0);
 
-	// allocate wireless nodes
 	vector<double> wirelessXpos;
 	vector<double> wirelessYpos;
-
-	for(int i = 0; i < wnodes; i++)
-	{
-		wirelessXpos.push_back(i*100);
-		wirelessYpos.push_back(0);
-	}
+	wirelessXpos.push_back(0);
+	wirelessXpos.push_back(100);
+	wirelessXpos.push_back(200);
+	wirelessXpos.push_back(300);
+	wirelessYpos.push_back(0);
+	wirelessYpos.push_back(0);
+	wirelessYpos.push_back(0);
+	wirelessYpos.push_back(0);
 
 	 // What the NDN Data packet payload size is fixed to 1024 bytes
 	uint32_t payLoadsize = 1024;
@@ -304,8 +340,8 @@ int main (int argc, char *argv[])
 	}
 
 	// How many Interests/second a producer creates
-	double intFreq = (MBps * 1000000) / payLoadsize;
-
+//	double intFreq = (MBps * 1000000) / payLoadsize;
+	uint32_t intFreq =293;
 
 
 	NS_LOG_INFO ("------Creating nodes------");
@@ -367,7 +403,7 @@ int main (int argc, char *argv[])
 	// Container for all nodes without NDN specific capabilities
 	NodeContainer allUserNodes;
 	allUserNodes.Add (mobileTerminalContainer);
-	allUserNodes.Add (serverNodes);
+	//allUserNodes.Add (serverNodes);
 
 	// Container for each AP to be identified
 	NodeContainer SSID1;
@@ -471,7 +507,7 @@ int main (int argc, char *argv[])
 
 	// Use the Wifi Helper to define the wireless interfaces for APs
 	WifiHelper wifi;
-	wifi.SetStandard(WIFI_PHY_STANDARD_80211g);
+	wifi.SetStandard(WIFI_PHY_STANDARD_80211b);
 	// The N standard is apparently not completely supported in NS-3
 	//wifi.setStandard(WIFI_PHY_STANDARD_80211n_2_4GHZ);
 	// The ConstantRateWifiManager only works with one rate, making issues
@@ -483,7 +519,7 @@ int main (int argc, char *argv[])
 
 	YansWifiChannelHelper wifiChannel;
 	wifiChannel.SetPropagationDelay ("ns3::ConstantSpeedPropagationDelayModel");
-	wifiChannel.AddPropagationLoss ("ns3::ThreeLogDistancePropagationLossModel");
+	wifiChannel.AddPropagationLoss ("ns3::ThreeLogDistancePropagationLossModel", "ReferenceLoss",DoubleValue(40.02));
 	wifiChannel.AddPropagationLoss("ns3::NakagamiPropagationLossModel");
 
 	// All interfaces are placed on the same channel. Makes AP changes easy. Might
@@ -583,6 +619,7 @@ int main (int argc, char *argv[])
 	ndnHelperRouters.SetDefaultRoutes (true);
 	// Install on ICN capable routers
 	ndnHelperRouters.Install (allNdnNodes);
+	ndnHelperRouters.Install (serverNodes);
 
 	// Create a NDN stack for the clients and mobile node
 	ndn::StackHelper ndnHelperUsers;
@@ -622,7 +659,7 @@ int main (int argc, char *argv[])
 		consumerHelper.SetAttribute ("MaxSeq", IntegerValue(maxSeq));
 
 	consumerHelper.Install (mobileTerminalContainer);
-	if(fake)	consumerHelper.Install (centralContainer);			//change here (normal / fake interest)
+	if(proactive)	consumerHelper.Install (centralContainer);			
 
 	sprintf(buffer, "Ending time! %f", endTime+1);
 	NS_LOG_INFO(buffer);
@@ -639,7 +676,7 @@ int main (int argc, char *argv[])
 		// Create the file identifier
 		sprintf(fileId, "%s-%02d-%03d-%03d.txt", routeType, mobile, servers, wnodes);
 
-/*		sprintf(filename, "%s/%s/%s/%.0f/clients", results, scenario, speed);
+/*		sprintf(filename, "%s/%s/%s/%.0f/%s/clients", results, scenario, speed);
 
 		std::ofstream clientFile;
 
@@ -652,7 +689,7 @@ int main (int argc, char *argv[])
 		clientFile.close();
 
 		// Print server nodes to file
-		sprintf(filename, "%s/%s/%s/%.0f/servers", results, scenario, speed);
+		sprintf(filename, "%s/%s/%s/%.0f/%s/servers", results, scenario, speed);
 
 		std::ofstream serverFile;
 
@@ -665,30 +702,31 @@ int main (int argc, char *argv[])
 		serverFile.close();
 */
 		char mode[7];
-		if(fake) sprintf(mode, "fake");
+		if(proactive) sprintf(mode, "proactive");
 		else sprintf(mode, "normal");
 
 		NS_LOG_INFO ("Installing tracers");
-
+	
+		
 		// NDN Aggregate tracer
-		printf ("now I'm writing the files at %s/%s/%s/%.0f/\n", results, scenario, mode, speed);
-		sprintf (filename, "%s/%s/%s/%.0f/aggregate-trace", results, scenario, mode, speed);
-		ndn::L3AggregateTracer::InstallAll(filename, Seconds (1.0));
+		printf ("Result files are being written at %s/%s/%.0f/%d/\n", results, mode, speed, distance);
+//		sprintf (filename, "%s/%s/%.0f/%d/aggregate-trace", results, mode, speed, distance);
+//		ndn::L3AggregateTracer::InstallAll(filename, Seconds (1.0));
 
 		// NDN L3 tracer
-		sprintf (filename, "%s/%s/%s/%.0f/rate-trace", results, scenario, mode, speed);
+		sprintf (filename, "%s/%s/%.0f/%d/rate-trace", results, mode, speed, distance);
 		ndn::L3RateTracer::InstallAll (filename, Seconds (1.0));
 
 		// NDN App Tracer
-		sprintf (filename, "%s/%s/%s/%.0f/app-delays", results, scenario, mode, speed);
+		sprintf (filename, "%s/%s/%.0f/%d/app-delays", results, mode, speed, distance);
 		ndn::AppDelayTracer::InstallAll (filename);
 
 		// L2 Drop rate tracer
-//		sprintf (filename, "%s/%s/%s/%.0f/drop-trace", results, scenario, mode, speed);
+//		sprintf (filename, "%s/%s/%.0f/%d/drop-trace", results, mode, speed, distance);
 //		L2RateTracer::InstallAll (filename, Seconds (0.5));
 
 		// Content Store tracer
-//		sprintf (filename, "%s/%s/%s/%.0f/cs-trace", results, scenario, mode, speed);
+//		sprintf (filename, "%s/%s/%.0f/%d/cs-trace", results, mode, speed, distance);
 //		ndn::CsTracer::InstallAll (filename, Seconds (1));
 	}
 
@@ -711,9 +749,14 @@ int main (int argc, char *argv[])
 			Simulator::Schedule (Seconds(j), &SetSSID, mobileNodeIds[0], 0, ssidV[k]);
 		}
 
+		NS_LOG_INFO ("------Testing PIT printing------");
+		Simulator::Schedule (Seconds(j), &PeriodicPitPrinter, wirelessContainer.Get(0));
+
 		j += checkTime;
 		k++;
 	}
+
+
 
 	NS_LOG_INFO ("------Ready for execution!------");
 
