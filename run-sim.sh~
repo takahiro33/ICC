@@ -4,27 +4,36 @@ WAFDIR=./
 WAF=${WAFDIR}waf
 
 mkdir results/
+mkdir results/graphs/
+mkdir results/normal/
+mkdir results/proactive/
 
 for  speed in 0 5 10
 do
 
+mkdir results/normal/$speed/
+mkdir results/proactive/$speed/
+
 for distance in 50 100 200
 do 
 
-# Creat Directries for trace files
-mkdir results/normal/
-mkdir results/normal/$speed/
 mkdir results/normal/$speed/$distance/
-
-echo "run $WAF --run "icc-scenario -speed=$speed -smart -trace""
-$WAF --run "icc-scenario -speed=$speed -distance=$distance -smart -trace" 
-
-mkdir results/proactive/
-mkdir results/proactive/$speed/
 mkdir results/proactive/$speed/$distance/
 
-echo "run $WAF --run "icc-scenario -speed=$speed -smart -trace -proactive""
-$WAF --run "icc-scenario -speed=$speed -distance=$distance -smart -proactive -trace " 
+for mobile in 1 2 5 10
+do
+
+mkdir results/normal/$speed/$distance/$mobile
+mkdir results/proactive/$speed/$distance/$mobile
+
+# Creat Directries for trace files
+echo "run $WAF --run "icc-scenario -speed=$speed -smart -mobile=$mobile -trace""
+$WAF --run "icc-scenario -speed=$speed -distance=$distance -smart -mobile=$mobile -trace" 
+
+echo "run $WAF --run "icc-scenario -speed=$speed -smart -trace -mobile=$mobile -proactive""
+$WAF --run "icc-scenario -speed=$speed -distance=$distance -smart -proactive -mobile=$mobile -trace" 
+
+done
 
 done
 
